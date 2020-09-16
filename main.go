@@ -72,7 +72,7 @@ func main() {
 	)
 
 	flag.Set("logtostderr", "true")
-	pflag.CommandLine.StringVar(&listenHost, "addr", "0.0.0.0", "server listen addr")
+	pflag.CommandLine.StringVar(&listenHost, "addr", "127.0.0.1", "server listen addr")
 	pflag.CommandLine.StringVar(&listenPort, "port", "18080", "server listen port")
 	pflag.CommandLine.StringVar(&config, "config", "config.yaml", "helm proxy config")
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)

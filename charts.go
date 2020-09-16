@@ -29,11 +29,11 @@ func findReadme(files []*chart.File) (file *chart.File) {
 }
 
 // @Summary 		获取chart详细信息
-// @Description 	根据chart名称，获取chart的readme、values、chart信息
+// @Description 	根据chart名称，获取chart的readme、values、chart、template信息
 // @Tags			Chart
 // @Param 			chart query string true "chart名称"
 // @Param   		version query string false "chart版本"
-// @Param   		info query string false "Enums(all, readme, values, chart)"
+// @Param   		info query string false "Enums(all, readme, values, chart、template)"
 // @Success 		200 {object} respBody
 // @Router 			/charts [get]
 func showChart(c *gin.Context) {
@@ -53,6 +53,7 @@ func showChart(c *gin.Context) {
 
 	client := action.NewShow(action.ShowAll)
 	client.Version = version
+	all := &showAll{}
 	if info == string(action.ShowAll) {
 		client.OutputFormat = action.ShowAll
 	} else if info == string(action.ShowChart) {
@@ -77,11 +78,14 @@ func showChart(c *gin.Context) {
 		respErr(c, err)
 		return
 	}
-
+	// 整理chart的chart信息
 	if client.OutputFormat == action.ShowChart {
 		respOK(c, chrt.Metadata)
 		return
+	} else if client.OutputFormat == action.ShowAll {
+		all.Chart = *chrt.Metadata
 	}
+	// 整理chart的values
 	if client.OutputFormat == action.ShowValues {
 		values := make([]*file, 0, len(chrt.Raw))
 		for _, v := range chrt.Raw {
@@ -93,10 +97,24 @@ func showChart(c *gin.Context) {
 		respOK(c, values)
 		return
 	}
+	// 整理chart的readme
 	if client.OutputFormat == action.ShowReadme {
 		respOK(c, string(findReadme(chrt.Files).Data))
 		return
+	} else if client.OutputFormat == action.ShowAll {
+		all.Readme = string(findReadme(chrt.Files).Data)
 	}
+
+	//返回all
+	respOK(c, all)
+	return
+}
+
+type showAll struct {
+	Chart    chart.Metadata `json:"chart"`
+	Values   string         `json:"values"`
+	Readme   string         `json:"readme"`
+	Template string         `json:"template"`
 }
 
 // @Summary			显示chart的部署yaml

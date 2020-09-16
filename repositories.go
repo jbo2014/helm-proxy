@@ -154,7 +154,7 @@ func listRepoCharts(c *gin.Context) {
 	if keyword == "" {
 		res = index.All()
 	} else {
-		res, err = index.Search(keyword, searchMaxScore, false)
+		res, err = index.Search(keyword, searchMaxScore, true)
 	}
 
 	search.SortScore(res)
