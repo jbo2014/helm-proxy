@@ -1,0 +1,437 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is a api proxy of helm.",
+        "title": "Helm API Proxy",
+        "contact": {
+            "name": "polya",
+            "email": "mika055@163.com"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "0.0.1"
+    },
+    "paths": {
+        "/charts": {
+            "get": {
+                "description": "根据chart名称，获取chart的readme、values、chart信息",
+                "tags": [
+                    "Chart"
+                ],
+                "summary": "获取chart详细信息",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "chart名称",
+                        "name": "chart",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "chart版本",
+                        "name": "version",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Enums(all, readme, values, chart)",
+                        "name": "info",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/charts/pull": {
+            "post": {
+                "description": "将页面填写值保存为部署文件，然后上传至harbor的helm chart",
+                "tags": [
+                    "Chart"
+                ],
+                "summary": "提交chart到镜像库",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "chart名称",
+                        "name": "chart",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/charts/template": {
+            "post": {
+                "description": "显示chart的k8s部署yaml，如果多个文件则合并到一个yaml一起展示出来",
+                "tags": [
+                    "Chart"
+                ],
+                "summary": "显示chart的部署yaml",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "chart名称",
+                        "name": "chart",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "是否不解析模板，1.不解析；0.解析为部署文件",
+                        "name": "raw",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/envs": {
+            "get": {
+                "description": "获取helm环境信息",
+                "tags": [
+                    "Env"
+                ],
+                "summary": "获取helm环境信息",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/namespaces/{namespace}/releases": {
+            "get": {
+                "description": "根据命名空间获取release信息列表(helm list)",
+                "tags": [
+                    "Release"
+                ],
+                "summary": "获取helm的release列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "release所在k8s的命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/namespaces/{namespace}/releases/{release}": {
+            "get": {
+                "description": "根据名称获取release信息(helm get)",
+                "tags": [
+                    "Release"
+                ],
+                "summary": "获取release详细信息",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "release所在k8s的命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "release名称",
+                        "name": "release",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Enums(all, hooks, manifest, notes, values)",
+                        "name": "info",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/namespaces/{namespace}/releases/{release}/histories": {
+            "get": {
+                "description": "获取release历史记录(helm release history)",
+                "tags": [
+                    "Release"
+                ],
+                "summary": "查看release历史记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "release所在k8s的命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "release名称",
+                        "name": "release",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/namespaces/{namespace}/releases/{release}/status": {
+            "get": {
+                "description": "获取release状态信息(helm status)",
+                "tags": [
+                    "Release"
+                ],
+                "summary": "查看release状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "release所在k8s的命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "release名称",
+                        "name": "release",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/repos": {
+            "get": {
+                "description": "列出所有repo",
+                "tags": [
+                    "Repository"
+                ],
+                "summary": "获取所有本地库",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/repos/add": {
+            "post": {
+                "description": "通过名称，删除一个镜像库",
+                "tags": [
+                    "Repository"
+                ],
+                "summary": "添加chart镜像库",
+                "parameters": [
+                    {
+                        "description": "仓库信息",
+                        "name": "repoinfo",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.repoAddOptions"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/repos/charts": {
+            "get": {
+                "description": "在本地库中查找chart，如没有keyword则列出所有chart",
+                "tags": [
+                    "Repository"
+                ],
+                "summary": "查找chart/列出本地库中的所有chart",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "搜索关键字",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "chart版本",
+                        "name": "version",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "如果true，查询出每个chart的所有版本；false，只列出每个chart最新版",
+                        "name": "versions",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/repos/remove/{reponame}": {
+            "delete": {
+                "description": "通过名称，删除一个镜像库",
+                "tags": [
+                    "Repository"
+                ],
+                "summary": "删除chart镜像库",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "repo1,repo2,repo3...",
+                        "name": "reponame",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/repos/update": {
+            "put": {
+                "description": "通过名称，删除一个镜像库",
+                "tags": [
+                    "Repository"
+                ],
+                "summary": "更新chart镜像库",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "main.repoAddOptions": {
+            "type": "object",
+            "properties": {
+                "caFile": {
+                    "type": "string"
+                },
+                "certFile": {
+                    "type": "string"
+                },
+                "insecureSkipTLSverify": {
+                    "type": "boolean"
+                },
+                "keyFile": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "noUpdate": {
+                    "type": "boolean"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.respBody": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "0 or 1, 0 is ok, 1 is error",
+                    "type": "integer"
+                },
+                "data": {
+                    "type": "object"
+                },
+                "error": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

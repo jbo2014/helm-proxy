@@ -1,0 +1,16 @@
+# uploadPath: /tmp/charts
+helmRepos:
+  # - name: bitnami
+  #   url: https://charts.bitnami.com/bitnami
+  # - name: harbor
+  #   url: https://192.168.0.188/chartrepo/chart
+  # - name: stable
+  #   url: https://kubernetes-charts.storage.googleapis.com/
+  # - name: incubator
+  #   url: https://kubernetes-charts-incubator.storage.googleapis.com
+  # - name: azure
+  #   url: http://mirror.azure.cn/kubernetes/charts/
+  - name: stable
+    url: https://apphub.aliyuncs.com/stable
+  # - name: experimental
+  #   url: https://apphub.aliyuncs.com/experimental

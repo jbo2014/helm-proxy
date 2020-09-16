@@ -1,0 +1,287 @@
+definitions:
+  main.repoAddOptions:
+    properties:
+      caFile:
+        type: string
+      certFile:
+        type: string
+      insecureSkipTLSverify:
+        type: boolean
+      keyFile:
+        type: string
+      name:
+        type: string
+      noUpdate:
+        type: boolean
+      password:
+        type: string
+      url:
+        type: string
+      username:
+        type: string
+    type: object
+  main.respBody:
+    properties:
+      code:
+        description: 0 or 1, 0 is ok, 1 is error
+        type: integer
+      data:
+        type: object
+      error:
+        type: string
+    type: object
+info:
+  contact:
+    email: mika055@163.com
+    name: polya
+  description: This is a api proxy of helm.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: Helm API Proxy
+  version: 0.0.1
+paths:
+  /charts:
+    get:
+      description: 根据chart名称，获取chart的readme、values、chart信息
+      parameters:
+      - description: chart名称
+        in: query
+        name: chart
+        required: true
+        type: string
+      - description: chart版本
+        in: query
+        name: version
+        type: string
+      - description: Enums(all, readme, values, chart)
+        in: query
+        name: info
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 获取chart详细信息
+      tags:
+      - Chart
+  /charts/pull:
+    post:
+      description: 将页面填写值保存为部署文件，然后上传至harbor的helm chart
+      parameters:
+      - description: chart名称
+        in: query
+        name: chart
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 提交chart到镜像库
+      tags:
+      - Chart
+  /charts/template:
+    post:
+      description: 显示chart的k8s部署yaml，如果多个文件则合并到一个yaml一起展示出来
+      parameters:
+      - description: chart名称
+        in: query
+        name: chart
+        required: true
+        type: string
+      - description: 是否不解析模板，1.不解析；0.解析为部署文件
+        in: query
+        name: raw
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 显示chart的部署yaml
+      tags:
+      - Chart
+  /envs:
+    get:
+      description: 获取helm环境信息
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 获取helm环境信息
+      tags:
+      - Env
+  /namespaces/{namespace}/releases:
+    get:
+      description: 根据命名空间获取release信息列表(helm list)
+      parameters:
+      - description: release所在k8s的命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 获取helm的release列表
+      tags:
+      - Release
+  /namespaces/{namespace}/releases/{release}:
+    get:
+      description: 根据名称获取release信息(helm get)
+      parameters:
+      - description: release所在k8s的命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: release名称
+        in: path
+        name: release
+        required: true
+        type: string
+      - description: Enums(all, hooks, manifest, notes, values)
+        in: query
+        name: info
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 获取release详细信息
+      tags:
+      - Release
+  /namespaces/{namespace}/releases/{release}/histories:
+    get:
+      description: 获取release历史记录(helm release history)
+      parameters:
+      - description: release所在k8s的命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: release名称
+        in: path
+        name: release
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 查看release历史记录
+      tags:
+      - Release
+  /namespaces/{namespace}/releases/{release}/status:
+    get:
+      description: 获取release状态信息(helm status)
+      parameters:
+      - description: release所在k8s的命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: release名称
+        in: path
+        name: release
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 查看release状态
+      tags:
+      - Release
+  /repos:
+    get:
+      description: 列出所有repo
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 获取所有本地库
+      tags:
+      - Repository
+  /repos/add:
+    post:
+      description: 通过名称，删除一个镜像库
+      parameters:
+      - description: 仓库信息
+        in: body
+        name: repoinfo
+        required: true
+        schema:
+          $ref: '#/definitions/main.repoAddOptions'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 添加chart镜像库
+      tags:
+      - Repository
+  /repos/charts:
+    get:
+      description: 在本地库中查找chart，如没有keyword则列出所有chart
+      parameters:
+      - description: 搜索关键字
+        in: query
+        name: keyword
+        type: string
+      - description: chart版本
+        in: query
+        name: version
+        type: string
+      - description: 如果true，查询出每个chart的所有版本；false，只列出每个chart最新版
+        in: query
+        name: versions
+        type: boolean
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 查找chart/列出本地库中的所有chart
+      tags:
+      - Repository
+  /repos/remove/{reponame}:
+    delete:
+      description: 通过名称，删除一个镜像库
+      parameters:
+      - description: repo1,repo2,repo3...
+        in: path
+        name: reponame
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 删除chart镜像库
+      tags:
+      - Repository
+  /repos/update:
+    put:
+      description: 通过名称，删除一个镜像库
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 更新chart镜像库
+      tags:
+      - Repository
+swagger: "2.0"
