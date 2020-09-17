@@ -2,12 +2,16 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/chartutil"
+	"sigs.k8s.io/yaml"
 )
 
 var readmeFileNames = []string{"readme.md", "readme.txt", "readme"}
@@ -62,6 +66,8 @@ func showChart(c *gin.Context) {
 		client.OutputFormat = action.ShowReadme
 	} else if info == string(action.ShowValues) {
 		client.OutputFormat = action.ShowValues
+	} else if strings.EqualFold(info, "temp") {
+		client.OutputFormat = "template"
 	} else {
 		respErr(c, fmt.Errorf("bad info %s, chart info only support readme/values/chart", info))
 		return
@@ -86,16 +92,21 @@ func showChart(c *gin.Context) {
 		all.Chart = *chrt.Metadata
 	}
 	// 整理chart的values
-	if client.OutputFormat == action.ShowValues {
-		values := make([]*file, 0, len(chrt.Raw))
-		for _, v := range chrt.Raw {
-			values = append(values, &file{
-				Name: v.Name,
-				Data: string(v.Data),
-			})
+	if client.OutputFormat == action.ShowValues || client.OutputFormat == action.ShowAll {
+		values := map[string]interface{}{}
+
+		for _, f := range chrt.Raw {
+			if f.Name == chartutil.ValuesfileName {
+				err = yaml.Unmarshal(f.Data, &values)
+				break
+			}
 		}
-		respOK(c, values)
-		return
+		if client.OutputFormat == action.ShowValues {
+			respOK(c, values)
+			return
+		} else if client.OutputFormat == action.ShowAll {
+			all.Values = values
+		}
 	}
 	// 整理chart的readme
 	if client.OutputFormat == action.ShowReadme {
@@ -104,6 +115,25 @@ func showChart(c *gin.Context) {
 	} else if client.OutputFormat == action.ShowAll {
 		all.Readme = string(findReadme(chrt.Files).Data)
 	}
+	// 整理chart的template
+	if client.OutputFormat == "template" || client.OutputFormat == action.ShowAll {
+		values := make([]*file, 0, len(chrt.Raw))
+		bol := false
+		for _, v := range chrt.Raw {
+			if bol, _ = regexp.MatchString(`templates/(.*).(yaml|yml)`, v.Name); bol {
+				values = append(values, &file{
+					Name: v.Name,
+					Data: string(v.Data),
+				})
+			}
+		}
+		if client.OutputFormat == "template" {
+			respOK(c, values)
+			return
+		} else if client.OutputFormat == action.ShowAll {
+			all.Template = values
+		}
+	}
 
 	//返回all
 	respOK(c, all)
@@ -111,133 +141,40 @@ func showChart(c *gin.Context) {
 }
 
 type showAll struct {
-	Chart    chart.Metadata `json:"chart"`
-	Values   string         `json:"values"`
-	Readme   string         `json:"readme"`
-	Template string         `json:"template"`
+	Chart    chart.Metadata         `json:"chart"`
+	Values   map[string]interface{} `json:"values"`
+	Readme   string                 `json:"readme"`
+	Template []*file                `json:"template"`
 }
 
 // @Summary			显示chart的部署yaml
 // @Description 	显示chart的k8s部署yaml，如果多个文件则合并到一个yaml一起展示出来
 // @Tags			Chart
 // @Param 			chart query string true "chart名称"
-// @Param 			raw query string false "是否不解析模板，1.不解析；0.解析为部署文件"
 // @Success 		200 {object} respBody
 // @Router 			/charts/template [post]
 func showTemplate(c *gin.Context) {
-	raw := c.DefaultQuery("raw", "0")
-	if raw == "0" {
-		// 显示编译变量后的yaml文件
-	} else if raw == "1" {
-		// 显示编译变量前的yaml模板
-	}
-	respOK(c, "haha")
-	return
+	// name := c.Query("chart")
+	// respOK(c, "haha")
+	// return
 }
 
 // @Summary			下载chart
 // @Description 	helm pull
 // @Tags			Chart
-// @Param 			chart query string true "chart URL | repo/chartname"
+// @Param 			url body string true "chart的url"
 // @Success 		200 {object} respBody
 // @Router 			/charts/export [post]
 func exportChart(c *gin.Context) {
-	// params := c.Query()
-
-	// filePath := c.Query("url")
-	// //打开文件
-	// fileTmp, errByOpenFile := os.Open(filePath)
-	// defer fileTmp.Close()
-
-	// //获取文件的名称
-	// fileName := path.Base(filePath)
-	// c.Header("Content-Type", "application/octet-stream")
-	// c.Header("Content-Disposition", "attachment; filename="+fileName)
-	// c.Header("Content-Transfer-Encoding", "binary")
-	// c.Header("Cache-Control", "no-cache")
-	// if len(filePath) == 0 || len(fileName) == 0 || errByOpenFile != nil {
-	// 	respErr(c, errors.Errorf("no exist"))
-	// 	c.Redirect(http.StatusFound, "/404")
-	// 	return
-	// }
-	// c.Header("Content-Type", "application/octet-stream")
-	// c.Header("Content-Disposition", "attachment; filename="+fileName)
-	// c.Header("Content-Transfer-Encoding", "binary")
-
-	// c.File(filePath)
-	// return
-}
-
-func pullChart(c *gin.Context) {
-	// p := c.Query("chart")
-	// if len(p) == 0 {
-	// 	respErr(c, errors.Errorf("need \"chart URL\" or \"repo/chartname\""))
-	// 	return
-	// }
-
-	// if p.Verify {
-	// 	c.Verify = downloader.VerifyAlways
-	// } else if p.VerifyLater {
-	// 	c.Verify = downloader.VerifyLater
-	// }
-
-	// // If untar is set, we fetch to a tempdir, then untar and copy after
-	// // verification.
-	// dest := p.DestDir
-	// if p.Untar {
-	// 	var err error
-	// 	dest, err = ioutil.TempDir("", "helm-")
-	// 	if err != nil {
-	// 		return out.String(), errors.Wrap(err, "failed to untar")
-	// 	}
-	// 	defer os.RemoveAll(dest)
-	// }
-
-	// if p.RepoURL != "" {
-	// 	chartURL, err := repo.FindChartInAuthRepoURL(p.RepoURL, p.Username, p.Password, chartRef, p.Version, p.CertFile, p.KeyFile, p.CaFile, getter.All(p.Settings))
-	// 	if err != nil {
-	// 		return out.String(), err
-	// 	}
-	// 	chartRef = chartURL
-	// }
-
-	// saved, v, err := c.DownloadTo(chartRef, p.Version, dest)
-	// if err != nil {
-	// 	return out.String(), err
-	// }
-
-	// if p.Verify {
-	// 	for name := range v.SignedBy.Identities {
-	// 		fmt.Fprintf(&out, "Signed by: %v\n", name)
-	// 	}
-	// 	fmt.Fprintf(&out, "Using Key With Fingerprint: %X\n", v.SignedBy.PrimaryKey.Fingerprint)
-	// 	fmt.Fprintf(&out, "Chart Hash Verified: %s\n", v.FileHash)
-	// }
-
-	// // After verification, untar the chart into the requested directory.
-	// if p.Untar {
-	// 	ud := p.UntarDir
-	// 	if !filepath.IsAbs(ud) {
-	// 		ud = filepath.Join(p.DestDir, ud)
-	// 	}
-	// 	// Let udCheck to check conflict file/dir without replacing ud when untarDir is the current directory(.).
-	// 	udCheck := ud
-	// 	if udCheck == "." {
-	// 		_, udCheck = filepath.Split(chartRef)
-	// 	} else {
-	// 		_, chartName := filepath.Split(chartRef)
-	// 		udCheck = filepath.Join(udCheck, chartName)
-	// 	}
-	// 	if _, err := os.Stat(udCheck); err != nil {
-	// 		if err := os.MkdirAll(udCheck, 0755); err != nil {
-	// 			return out.String(), errors.Wrap(err, "failed to untar (mkdir)")
-	// 		}
-
-	// 	} else {
-	// 		return out.String(), errors.Errorf("failed to untar: a file or directory with the name %s already exists", udCheck)
-	// 	}
-
-	// 	return out.String(), chartutil.ExpandFile(ud, saved)
-	// }
-	// return out.String(), nil
+	url := c.Query("url")
+	c.Header("Content-Type", "application/octet-stream")
+	c.Header("Content-Disposition", "attachment; filename="+url)
+	c.Header("Content-Transfer-Encoding", "binary")
+	c.Header("Cache-Control", "no-cache")
+	if len(url) == 0 {
+		respErr(c, errors.Errorf("no exist"))
+		return
+	}
+	c.File(url)
+	return
 }

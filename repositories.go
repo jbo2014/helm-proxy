@@ -25,12 +25,13 @@ import (
 const searchMaxScore = 25
 
 type repoChartElement struct {
-	Name        string `json:"name"`
-	Version     string `json:"version"`
-	AppVersion  string `json:"app_version"`
-	Description string `json:"description"`
-	Icon        string `json:"icon"`
-	Tags        string `json:"tags"`
+	Name        string   `json:"name"`
+	Version     string   `json:"version"`
+	AppVersion  string   `json:"app_version"`
+	Description string   `json:"description"`
+	Icon        string   `json:"icon"`
+	Tags        string   `json:"tags"`
+	Url         []string `json:"url"`
 }
 
 type repoChartList []repoChartElement
@@ -176,6 +177,7 @@ func listRepoCharts(c *gin.Context) {
 			Description: v.Chart.Description,
 			Icon:        v.Chart.Icon,
 			Tags:        v.Chart.Tags,
+			Url:         v.Chart.URLs,
 		})
 	}
 
@@ -217,8 +219,9 @@ func listRepositories(c *gin.Context) {
 // @Router 			/repos/add [post]
 func addRepository(c *gin.Context) {
 	var info repoAddOptions
-
 	if c.Bind(&info) == nil {
+		respErr(c, errors.Errorf("missing parameters"))
+		return
 	}
 
 	o := info

@@ -25,14 +25,18 @@ import (
 )
 
 type HelmConfig struct {
-	UploadPath string        `yaml:"uploadPath"`
-	HelmRepos  []*repo.Entry `yaml:"helmRepos"`
+	UploadPath   string        `yaml:"uploadPath"`   //chart的上传路径
+	TemplatePath string        `yaml:"templatePath"` //chart的模板路径
+	SnapPath     string        `yaml:"snapPath"`     //上传chart库前的临时路径
+	HelmRepos    []*repo.Entry `yaml:"helmRepos"`
 }
 
 var (
-	settings          = cli.New()
-	defaultUploadPath = "/tmp/charts"
-	helmConfig        = &HelmConfig{}
+	settings            = cli.New()
+	defaultUploadPath   = "./charts/upload"
+	defaultTemplatePath = "./charts/template"
+	defaultSnapPath     = "./charts/snap"
+	helmConfig          = &HelmConfig{}
 )
 
 // 跨域
@@ -58,10 +62,8 @@ func cors() gin.HandlerFunc {
 // @title Helm API Proxy
 // @version 0.0.1
 // @description This is a api proxy of helm.
-
 // @contact.name polya
 // @contact.email mika055@163.com
-
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
 func main() {
@@ -95,6 +97,22 @@ func main() {
 	} else {
 		if !filepath.IsAbs(helmConfig.UploadPath) {
 			glog.Fatalln("charts upload path is not absolute")
+		}
+	}
+	// chart template path
+	if helmConfig.TemplatePath == "" {
+		helmConfig.TemplatePath = defaultTemplatePath
+	} else {
+		if !filepath.IsAbs(helmConfig.TemplatePath) {
+			glog.Fatalln("charts template path is not absolute")
+		}
+	}
+	// chart snap path
+	if helmConfig.SnapPath == "" {
+		helmConfig.SnapPath = defaultSnapPath
+	} else {
+		if !filepath.IsAbs(helmConfig.SnapPath) {
+			glog.Fatalln("charts snap path is not absolute")
 		}
 	}
 	_, err = os.Stat(helmConfig.UploadPath)
