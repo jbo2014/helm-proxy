@@ -1,4 +1,57 @@
 definitions:
+  main.downFactor:
+    properties:
+      chartUrl:
+        type: string
+      repoUrl:
+        type: string
+    type: object
+  main.releaseOptions:
+    properties:
+      atomic:
+        type: boolean
+      cleanup_on_fail:
+        type: boolean
+      create_namespace:
+        description: only install
+        type: boolean
+      dependency_update:
+        type: boolean
+      description:
+        type: string
+      devel:
+        type: boolean
+      disable_hooks:
+        type: boolean
+      dry_run:
+        description: common
+        type: boolean
+      force:
+        description: only upgrade
+        type: boolean
+      install:
+        type: boolean
+      recreate:
+        type: boolean
+      set:
+        items:
+          type: string
+        type: array
+      set_string:
+        items:
+          type: string
+        type: array
+      skip_crds:
+        type: boolean
+      sub_notes:
+        type: boolean
+      timeout:
+        type: string
+      values:
+        type: string
+      wait:
+        type: boolean
+    type: object
   main.repoAddOptions:
     properties:
       caFile:
@@ -43,7 +96,7 @@ info:
 paths:
   /charts:
     get:
-      description: 根据chart名称，获取chart的readme、values、chart信息
+      description: 根据chart名称，获取chart的readme、values、chart、template信息
       parameters:
       - description: chart名称
         in: query
@@ -54,7 +107,7 @@ paths:
         in: query
         name: version
         type: string
-      - description: Enums(all, readme, values, chart)
+      - description: Enums(all, readme, values, chart、template)
         in: query
         name: info
         type: string
@@ -66,21 +119,22 @@ paths:
       summary: 获取chart详细信息
       tags:
       - Chart
-  /charts/pull:
+  /charts/export:
     post:
-      description: 将页面填写值保存为部署文件，然后上传至harbor的helm chart
+      description: helm pull
       parameters:
-      - description: chart名称
-        in: query
-        name: chart
+      - description: 带下载的chart路径信息
+        in: body
+        name: factor
         required: true
-        type: string
+        schema:
+          $ref: '#/definitions/main.downFactor'
       responses:
         "200":
           description: OK
           schema:
             $ref: '#/definitions/main.respBody'
-      summary: 提交chart到镜像库
+      summary: 下载chart
       tags:
       - Chart
   /charts/template:
@@ -92,16 +146,12 @@ paths:
         name: chart
         required: true
         type: string
-      - description: 是否不解析模板，1.不解析；0.解析为部署文件
-        in: query
-        name: raw
-        type: string
       responses:
         "200":
           description: OK
           schema:
             $ref: '#/definitions/main.respBody'
-      summary: 显示chart的部署yaml
+      summary: 显示chart解析后的k8s部署yaml
       tags:
       - Chart
   /envs:
@@ -133,6 +183,27 @@ paths:
       tags:
       - Release
   /namespaces/{namespace}/releases/{release}:
+    delete:
+      description: 卸载chart的实例(helm uninstall)
+      parameters:
+      - description: release所在k8s的命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: release名称
+        in: path
+        name: release
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 卸载release
+      tags:
+      - Release
     get:
       description: 根据名称获取release信息(helm get)
       parameters:
@@ -157,6 +228,38 @@ paths:
           schema:
             $ref: '#/definitions/main.respBody'
       summary: 获取release详细信息
+      tags:
+      - Release
+    post:
+      description: 安装chart的实例(helm install)
+      parameters:
+      - description: release所在k8s的命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: release名称
+        in: path
+        name: release
+        required: true
+        type: string
+      - description: chart名称
+        in: query
+        name: chart
+        required: true
+        type: string
+      - description: 安装可选项
+        in: body
+        name: options
+        required: true
+        schema:
+          $ref: '#/definitions/main.releaseOptions'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 安装release
       tags:
       - Release
   /namespaces/{namespace}/releases/{release}/histories:
@@ -275,7 +378,7 @@ paths:
       - Repository
   /repos/update:
     put:
-      description: 通过名称，删除一个镜像库
+      description: 更新chart仓库信息
       responses:
         "200":
           description: OK

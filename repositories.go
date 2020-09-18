@@ -219,7 +219,7 @@ func listRepositories(c *gin.Context) {
 // @Router 			/repos/add [post]
 func addRepository(c *gin.Context) {
 	var info repoAddOptions
-	if c.Bind(&info) == nil {
+	if c.Bind(&info) != nil {
 		respErr(c, errors.Errorf("missing parameters"))
 		return
 	}
@@ -377,7 +377,7 @@ func removeRepoCache(root, name string) error {
 }
 
 // @Summary			更新chart镜像库
-// @Description 	通过名称，删除一个镜像库
+// @Description 	更新chart仓库信息
 // @Tags			Repository
 // @Success 		200 {object} respBody
 // @Router 			/repos/update [put]
@@ -393,7 +393,7 @@ func updateRepositories(c *gin.Context) {
 		wg.Add(1)
 		go func(c *repo.Entry) {
 			defer wg.Done()
-			err := updateChart(c)
+			err := updateCharts(c)
 			if err != nil {
 				errRepoList = append(errRepoList, errRepo{
 					Name: c.Name,
@@ -412,7 +412,7 @@ func updateRepositories(c *gin.Context) {
 	respOK(c, nil)
 }
 
-func updateChart(c *repo.Entry) error {
+func updateCharts(c *repo.Entry) error {
 	r, err := repo.NewChartRepository(c, getter.All(settings))
 	if err != nil {
 		return err

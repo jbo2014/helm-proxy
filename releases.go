@@ -258,6 +258,15 @@ func showReleaseInfo(c *gin.Context) {
 	}
 }
 
+// @Summary			安装release
+// @Description 	安装chart的实例(helm install)
+// @Tags			Release
+// @Param 			namespace path string true "release所在k8s的命名空间"
+// @Param 			release path string true "release名称"
+// @Param 			chart query string true "chart名称"
+// @Param 			options body releaseOptions true "安装可选项""
+// @Success 		200 {object} respBody
+// @Router 			/namespaces/{namespace}/releases/{release} [post]
 func installRelease(c *gin.Context) {
 	name := c.Param("release")
 	namespace := c.Param("namespace")
@@ -360,6 +369,13 @@ func installRelease(c *gin.Context) {
 	respOK(c, nil)
 }
 
+// @Summary			卸载release
+// @Description 	卸载chart的实例(helm uninstall)
+// @Tags			Release
+// @Param 			namespace path string true "release所在k8s的命名空间"
+// @Param 			release path string true "release名称"
+// @Success 		200 {object} respBody
+// @Router 			/namespaces/{namespace}/releases/{release} [delete]
 func uninstallRelease(c *gin.Context) {
 	name := c.Param("release")
 	namespace := c.Param("namespace")

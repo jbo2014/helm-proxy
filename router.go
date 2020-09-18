@@ -54,7 +54,7 @@ func RegisterRouter(router *gin.Engine) {
 	}
 
 	// helm chart
-	charts := router.Group("/api/charts")
+	charts := router.Group("/api/chart")
 	{
 		// helm show all/readme/values/chart
 		charts.GET("", showChart)
@@ -62,6 +62,10 @@ func RegisterRouter(router *gin.Engine) {
 		charts.POST("/template", showTemplate)
 		// helm pull
 		charts.POST("/export", exportChart)
+		// create chart
+		charts.POST("/create", createChart)
+		// update chart
+		charts.PUT("/update", updateChart)
 		// upload chart
 		charts.POST("/upload", uploadChart)
 		// list uploaded charts
@@ -83,9 +87,9 @@ func RegisterRouter(router *gin.Engine) {
 		releases.DELETE("/:release", uninstallRelease)
 		// helm rollback
 		releases.PUT("/:release/versions/:reversion", rollbackRelease)
-		// helm status <RELEASE_NAME>
+		// helm status
 		releases.GET("/:release/status", getReleaseStatus)
-		// helm release history
+		// helm history
 		releases.GET("/:release/histories", listReleaseHistories)
 	}
 }

@@ -33,7 +33,7 @@ var doc = `{
     "paths": {
         "/charts": {
             "get": {
-                "description": "根据chart名称，获取chart的readme、values、chart信息",
+                "description": "根据chart名称，获取chart的readme、values、chart、template信息",
                 "tags": [
                     "Chart"
                 ],
@@ -54,7 +54,7 @@ var doc = `{
                     },
                     {
                         "type": "string",
-                        "description": "Enums(all, readme, values, chart)",
+                        "description": "Enums(all, readme, values, chart、template)",
                         "name": "info",
                         "in": "query"
                     }
@@ -69,20 +69,22 @@ var doc = `{
                 }
             }
         },
-        "/charts/pull": {
+        "/charts/export": {
             "post": {
-                "description": "将页面填写值保存为部署文件，然后上传至harbor的helm chart",
+                "description": "helm pull",
                 "tags": [
                     "Chart"
                 ],
-                "summary": "提交chart到镜像库",
+                "summary": "下载chart",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "chart名称",
-                        "name": "chart",
-                        "in": "query",
-                        "required": true
+                        "description": "带下载的chart路径信息",
+                        "name": "factor",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.downFactor"
+                        }
                     }
                 ],
                 "responses": {
@@ -101,7 +103,7 @@ var doc = `{
                 "tags": [
                     "Chart"
                 ],
-                "summary": "显示chart的部署yaml",
+                "summary": "显示chart解析后的k8s部署yaml",
                 "parameters": [
                     {
                         "type": "string",
@@ -109,12 +111,6 @@ var doc = `{
                         "name": "chart",
                         "in": "query",
                         "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "是否不解析模板，1.不解析；0.解析为部署文件",
-                        "name": "raw",
-                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -197,6 +193,84 @@ var doc = `{
                         "description": "Enums(all, hooks, manifest, notes, values)",
                         "name": "info",
                         "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "安装chart的实例(helm install)",
+                "tags": [
+                    "Release"
+                ],
+                "summary": "安装release",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "release所在k8s的命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "release名称",
+                        "name": "release",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "chart名称",
+                        "name": "chart",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "安装可选项",
+                        "name": "options",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.releaseOptions"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "卸载chart的实例(helm uninstall)",
+                "tags": [
+                    "Release"
+                ],
+                "summary": "卸载release",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "release所在k8s的命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "release名称",
+                        "name": "release",
+                        "in": "path",
                         "required": true
                     }
                 ],
@@ -386,7 +460,7 @@ var doc = `{
         },
         "/repos/update": {
             "put": {
-                "description": "通过名称，删除一个镜像库",
+                "description": "更新chart仓库信息",
                 "tags": [
                     "Repository"
                 ],
@@ -403,6 +477,85 @@ var doc = `{
         }
     },
     "definitions": {
+        "main.downFactor": {
+            "type": "object",
+            "properties": {
+                "chartUrl": {
+                    "type": "string"
+                },
+                "repoUrl": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.releaseOptions": {
+            "type": "object",
+            "properties": {
+                "atomic": {
+                    "type": "boolean"
+                },
+                "cleanup_on_fail": {
+                    "type": "boolean"
+                },
+                "create_namespace": {
+                    "description": "only install",
+                    "type": "boolean"
+                },
+                "dependency_update": {
+                    "type": "boolean"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "devel": {
+                    "type": "boolean"
+                },
+                "disable_hooks": {
+                    "type": "boolean"
+                },
+                "dry_run": {
+                    "description": "common",
+                    "type": "boolean"
+                },
+                "force": {
+                    "description": "only upgrade",
+                    "type": "boolean"
+                },
+                "install": {
+                    "type": "boolean"
+                },
+                "recreate": {
+                    "type": "boolean"
+                },
+                "set": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "set_string": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "skip_crds": {
+                    "type": "boolean"
+                },
+                "sub_notes": {
+                    "type": "boolean"
+                },
+                "timeout": {
+                    "type": "string"
+                },
+                "values": {
+                    "type": "string"
+                },
+                "wait": {
+                    "type": "boolean"
+                }
+            }
+        },
         "main.repoAddOptions": {
             "type": "object",
             "properties": {
