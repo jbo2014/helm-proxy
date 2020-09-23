@@ -13,3 +13,9 @@
 
 # vim swap file
 *.swp
+
+# fold
+/.vscode
+/charts/snap/*
+/charts/template/*
+/charts/upload/*
