@@ -1,9 +1,32 @@
 definitions:
+  main.chartNew:
+    properties:
+      chart:
+        type: string
+      readme:
+        type: string
+      repoName:
+        type: string
+      template:
+        items:
+          $ref: '#/definitions/main.file'
+        type: array
+      values:
+        additionalProperties: true
+        type: object
+    type: object
   main.downFactor:
     properties:
       chartUrl:
         type: string
       repoUrl:
+        type: string
+    type: object
+  main.file:
+    properties:
+      data:
+        type: string
+      name:
         type: string
     type: object
   main.releaseOptions:
@@ -119,9 +142,27 @@ paths:
       summary: 获取chart详细信息
       tags:
       - Chart
+  /charts/create:
+    post:
+      description: 新建一个chart并上传至镜像库
+      parameters:
+      - description: chart信息
+        in: body
+        name: newChart
+        required: true
+        schema:
+          $ref: '#/definitions/main.chartNew'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: 新建chart
+      tags:
+      - Chart
   /charts/export:
     post:
-      description: helm pull
+      description: 获取chart的下载地址
       parameters:
       - description: 带下载的chart路径信息
         in: body
@@ -134,7 +175,7 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/main.respBody'
-      summary: 下载chart
+      summary: 获取chart下载地址
       tags:
       - Chart
   /charts/template:
@@ -262,6 +303,31 @@ paths:
       summary: 安装release
       tags:
       - Release
+    put:
+      description: 升级release(helm upgrade)
+      parameters:
+      - description: release所在k8s的命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: release名称
+        in: path
+        name: release
+        required: true
+        type: string
+      - description: chart名称
+        in: query
+        name: chart
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: release升级
+      tags:
+      - Release
   /namespaces/{namespace}/releases/{release}/histories:
     get:
       description: 获取release历史记录(helm release history)
@@ -304,6 +370,33 @@ paths:
           schema:
             $ref: '#/definitions/main.respBody'
       summary: 查看release状态
+      tags:
+      - Release
+  /namespaces/{namespace}/releases/{release}/versions/{reversion}:
+    put:
+      description: 回滚release到之前版本(helm rollback)
+      parameters:
+      - description: release所在k8s的命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: release名称
+        in: path
+        name: release
+        required: true
+        type: string
+      - description: chart版本号
+        in: path
+        name: versions
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.respBody'
+      summary: release回滚
       tags:
       - Release
   /repos:

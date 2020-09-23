@@ -6,15 +6,21 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
+	cm "github.com/chartmuseum/helm-push/pkg/chartmuseum"
+	"github.com/chartmuseum/helm-push/pkg/helm"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
+	"helm.sh/helm/v3/pkg/repo"
 	"sigs.k8s.io/yaml"
 )
 
@@ -61,7 +67,7 @@ func showChart(c *gin.Context) {
 
 	client := action.NewShow(action.ShowAll)
 	client.Version = version
-	all := &chartView{}
+	all := &ChartView{}
 	if info == string(action.ShowAll) {
 		client.OutputFormat = action.ShowAll
 	} else if info == string(action.ShowChart) {
@@ -144,7 +150,7 @@ func showChart(c *gin.Context) {
 	return
 }
 
-type chartView struct {
+type ChartView struct {
 	Chart    chart.Metadata         `json:"chart"`
 	Values   map[string]interface{} `json:"values"`
 	Readme   string                 `json:"readme"`
@@ -291,76 +297,237 @@ type downFactor struct {
 // @Summary			新建chart
 // @Description 	新建一个chart并上传至镜像库
 // @Tags			Chart
-// @Param			repoUrl query string true "chart仓库的上传地址"
-// @Param 			meta body chart.Metadata true "chart基本信息"
-// @Param 			readme query string true "chart的readme"
-// @Param 			values body map[string]interface{} true "chart的values"
-// @Param 			compose query string true "chart的k8s部署yaml"
+// @Param 			newChart body chartNew true "chart信息"
 // @Success 		200 {object} respBody
 // @Router 			/charts/create [post]
 func createChart(c *gin.Context) {
-	var meta chart.Metadata
-	if err := c.BindJSON(&meta); err != nil {
+	var chartObj chartNew
+	if err := c.BindJSON(&chartObj); err != nil {
 		respErr(c, err)
 		return
 	}
-	readme := c.Query("readme")
-	var values map[string]interface{}
-	if err := c.BindJSON(&values); err != nil {
-		respErr(c, err)
-		return
-	}
-	compose := c.Query("compose")
 
 	// 创建chart目录和文件
-	path := helmConfig.SnapPath + "/" + meta.Name
-	os.MkdirAll(path, 0755) //创建chart目录
-	//创建Chart.yaml
-	if file, err := os.Create(path + "/Chart.yaml"); err == nil {
-		data, _ := json.Marshal(meta)
-		file.Write(data)
+	//path := helmConfig.SnapPath + "/" + chartObj.Chart.Name + "." + strconv.FormatInt(time.Now().UnixNano(), 10)
+	// os.MkdirAll(path, 0755) //创建chart目录
+	// //创建Chart.yaml
+	// if file, err := os.Create(path + "/Chart.yaml"); err == nil {
+	// 	data, _ := yaml.Marshal(chartObj.Chart)
+	// 	file.Write(data)
+	// }
+	// //创建values.yaml
+	// if file, err := os.Create(path + "/values.yaml"); err == nil {
+	// 	data, _ := yaml.Marshal(chartObj.Values)
+	// 	file.Write(data)
+	// }
+	// //创建readme.md
+	// if file, err := os.Create(path + "/README.md"); err == nil {
+	// 	file.WriteString(chartObj.Readme)
+	// }
+	// os.MkdirAll(path+"/templates", 0755) //创建chart目录
+	// //创建k8s-compose.yaml
+	// if file, err := os.Create(path + "/templates/k8s-compose.yaml"); err == nil {
+	// 	file.WriteString(chartObj.Template[0].Data)
+	// }
+
+	path, err := ioutil.TempDir(helmConfig.SnapPath, chartObj.Chart.Name+"."+strconv.FormatInt(time.Now().UnixNano(), 10))
+	if err == nil {
+		//创建Chart.yaml
+		if f, err := os.Create(path + "/Chart.yaml"); err == nil {
+			data, _ := yaml.Marshal(chartObj.Chart)
+			f.Write(data)
+		}
+		//创建values.yaml
+		if f, err := os.Create(path + "/values.yaml"); err == nil {
+			data, _ := yaml.Marshal(chartObj.Values)
+			f.Write(data)
+		}
+		//创建README.md
+		if f, err := os.Create(path + "/README.md"); err == nil {
+			f.WriteString(chartObj.Readme)
+		}
+		if err := os.MkdirAll(path+"/templates", 0755); err == nil {
+			//创建k8s-compose.yaml
+			if f, err := os.Create(path + "/templates/k8s-compose.yaml"); err == nil {
+				f.WriteString(chartObj.Template[0].Data)
+			}
+		}
 	}
-	//创建values.yaml
-	if file, err := os.Create(path + "/values.yaml"); err == nil {
-		data, _ := json.Marshal(values)
-		file.Write(data)
-	}
-	//创建readme.md
-	if file, err := os.Create(path + "/readme.md"); err == nil {
-		file.WriteString(readme)
-	}
-	os.MkdirAll(path+"/templates", 0755) //创建chart目录
-	//创建k8s-compose.yaml
-	if file, err := os.Create(path + "/templates/k8s-compose.yaml"); err == nil {
-		file.WriteString(compose)
+	defer os.RemoveAll(path)
+
+	// b, err := ioutil.ReadFile(settings.RepositoryConfig)
+	// if err != nil && !os.IsNotExist(err) {
+	// 	return err
+	// }
+	//repo := c.Query("repoUrl")
+	// 确定repo对象
+	repo := &repo.Entry{}
+	for _, r := range helmConfig.HelmRepos {
+		if r.Name == chartObj.RepoName {
+			repo = r
+			break
+		}
 	}
 
-	repo := c.Query("repoUrl")
-	pushChart(path, repo)
+	pusher := &pusher{
+		chartName:    path,
+		chartVersion: chartObj.Chart.Version,
+		repoName:     chartObj.RepoName,
+	}
+
+	if err := push(pusher, repo); err != nil {
+		respErr(c, err)
+	} else {
+		respOK(c, "ok")
+	}
 }
 
-//
+type chartNew struct {
+	RepoName string `json:"repoName"`
+	*ChartView
+}
+
+//s
 func updateChart(c *gin.Context) {
 
 }
 
-func pushChart(url string, arg ...string) error {
-	client := &http.Client{}
-	req, err := http.NewRequest(
-		"POST",
-		url,
-		strings.NewReader("name=abc"))
+// region:上传chart库共通
+
+type pusher struct {
+	chartName    string
+	chartVersion string
+	repoName     string
+	accessToken  string
+	authHeader   string
+	contextPath  string
+	forceUpload  bool
+	useHTTP      bool
+}
+
+func push(p *pusher, r *repo.Entry) error {
+	var err error
+
+	// If the argument looks like a URL, just create a temp repo object
+	// instead of looking for the entry in the local repository list
+	if regexp.MustCompile(`^https?://`).MatchString(p.repoName) {
+		//r, err = helm.TempRepoFromURL(p.repoName)
+		p.repoName = r.URL
+	} else {
+		//repo, err = helm.GetRepoByName(p.repoName)
+	}
+
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := client.Do(req)
+
+	chart, err := helm.GetChartByName(p.chartName)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-	_, err := ioutil.ReadAll(resp.Body)
+
+	// version override
+	if p.chartVersion != "" {
+		chart.SetVersion(p.chartVersion)
+	}
+
+	// username/password override(s)
+	username := r.Username
+	password := r.Password
+
+	// in case the repo is stored with cm:// protocol, remove it
+	var url string
+	if p.useHTTP {
+		url = strings.Replace(r.URL, "cm://", "http://", 1)
+	} else {
+		url = strings.Replace(r.URL, "cm://", "https://", 1)
+	}
+
+	client, err := cm.NewClient(
+		cm.URL(url),
+		cm.Username(username),
+		cm.Password(password),
+		cm.AccessToken(p.accessToken),
+		cm.AuthHeader(p.authHeader),
+		cm.ContextPath(p.contextPath),
+		cm.CAFile(r.CAFile),
+		cm.CertFile(r.CertFile),
+		cm.KeyFile(r.KeyFile),
+		cm.InsecureSkipVerify(r.InsecureSkipTLSverify),
+	)
+
 	if err != nil {
 		return err
+	}
+
+	// update context path if not overrided
+	// if p.contextPath == "" {
+	// 	index, err := helm.GetIndexByRepo(nil, getIndexDownloader(client))
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	client.Option(cm.ContextPath(index.ServerInfo.ContextPath))
+	// }
+
+	tmp, err := ioutil.TempDir("", "helm-push-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+
+	chartPackagePath, err := helm.CreateChartPackage(chart, tmp)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Pushing %s to %s...\n", filepath.Base(chartPackagePath), p.repoName)
+	resp, err := client.UploadChartPackage(chartPackagePath, p.forceUpload)
+	if err != nil {
+		return err
+	}
+
+	return handlePushResponse(resp)
+}
+
+func getIndexDownloader(client *cm.Client) helm.IndexDownloader {
+	return func() ([]byte, error) {
+		resp, err := client.DownloadFile("index.yaml")
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		b, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode != 200 {
+			return nil, getChartmuseumError(b, resp.StatusCode)
+		}
+		return b, nil
 	}
 }
+
+func handlePushResponse(resp *http.Response) error {
+	if resp.StatusCode != 201 {
+		b, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		return getChartmuseumError(b, resp.StatusCode)
+	}
+	fmt.Println("Done.")
+	return nil
+}
+
+func getChartmuseumError(b []byte, code int) error {
+	var er struct {
+		Error string `json:"error"`
+	}
+	err := json.Unmarshal(b, &er)
+	if err != nil || er.Error == "" {
+		return fmt.Errorf("%d: could not properly parse response JSON: %s", code, string(b))
+	}
+	return fmt.Errorf("%d: %s", code, er.Error)
+}
+
+// endregion

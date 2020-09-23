@@ -54,7 +54,7 @@ func RegisterRouter(router *gin.Engine) {
 	}
 
 	// helm chart
-	charts := router.Group("/api/chart")
+	charts := router.Group("/api/charts")
 	{
 		// helm show all/readme/values/chart
 		charts.GET("", showChart)

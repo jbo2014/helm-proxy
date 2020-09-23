@@ -52,13 +52,41 @@
                 }
             }
         },
-        "/charts/export": {
+        "/charts/create": {
             "post": {
-                "description": "helm pull",
+                "description": "新建一个chart并上传至镜像库",
                 "tags": [
                     "Chart"
                 ],
-                "summary": "下载chart",
+                "summary": "新建chart",
+                "parameters": [
+                    {
+                        "description": "chart信息",
+                        "name": "newChart",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.chartNew"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/charts/export": {
+            "post": {
+                "description": "获取chart的下载地址",
+                "tags": [
+                    "Chart"
+                ],
+                "summary": "获取chart下载地址",
                 "parameters": [
                     {
                         "description": "带下载的chart路径信息",
@@ -177,6 +205,43 @@
                         "name": "info",
                         "in": "query",
                         "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "升级release(helm upgrade)",
+                "tags": [
+                    "Release"
+                ],
+                "summary": "release升级",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "release所在k8s的命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "release名称",
+                        "name": "release",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "chart名称",
+                        "name": "chart",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -333,6 +398,46 @@
                 }
             }
         },
+        "/namespaces/{namespace}/releases/{release}/versions/{reversion}": {
+            "put": {
+                "description": "回滚release到之前版本(helm rollback)",
+                "tags": [
+                    "Release"
+                ],
+                "summary": "release回滚",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "release所在k8s的命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "release名称",
+                        "name": "release",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "chart版本号",
+                        "name": "versions",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.respBody"
+                        }
+                    }
+                }
+            }
+        },
         "/repos": {
             "get": {
                 "description": "列出所有repo",
@@ -460,6 +565,30 @@
         }
     },
     "definitions": {
+        "main.chartNew": {
+            "type": "object",
+            "properties": {
+                "chart": {
+                    "type": "string"
+                },
+                "readme": {
+                    "type": "string"
+                },
+                "repoName": {
+                    "type": "string"
+                },
+                "template": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.file"
+                    }
+                },
+                "values": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
         "main.downFactor": {
             "type": "object",
             "properties": {
@@ -467,6 +596,17 @@
                     "type": "string"
                 },
                 "repoUrl": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.file": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 }
             }

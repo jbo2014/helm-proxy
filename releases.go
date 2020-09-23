@@ -394,6 +394,14 @@ func uninstallRelease(c *gin.Context) {
 	respOK(c, nil)
 }
 
+// @Summary			release回滚
+// @Description 	回滚release到之前版本(helm rollback)
+// @Tags			Release
+// @Param 			namespace path string true "release所在k8s的命名空间"
+// @Param 			release path string true "release名称"
+// @Param 			versions path string true "chart版本号"
+// @Success 		200 {object} respBody
+// @Router 			/namespaces/{namespace}/releases/{release}/versions/{reversion} [put]
 func rollbackRelease(c *gin.Context) {
 	name := c.Param("release")
 	namespace := c.Param("namespace")
@@ -420,6 +428,14 @@ func rollbackRelease(c *gin.Context) {
 	respOK(c, nil)
 }
 
+// @Summary			release升级
+// @Description 	升级release(helm upgrade)
+// @Tags			Release
+// @Param 			namespace path string true "release所在k8s的命名空间"
+// @Param 			release path string true "release名称"
+// @Param 			chart query string false "chart名称"
+// @Success 		200 {object} respBody
+// @Router 			/namespaces/{namespace}/releases/{release} [put]
 func upgradeRelease(c *gin.Context) {
 	name := c.Param("release")
 	namespace := c.Param("namespace")
