@@ -139,6 +139,15 @@ var doc = `{
                         "name": "chart",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "description": "变量",
+                        "name": "values",
+                        "in": "body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
                     }
                 ],
                 "responses": {

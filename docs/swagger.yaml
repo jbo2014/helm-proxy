@@ -187,6 +187,12 @@ paths:
         name: chart
         required: true
         type: string
+      - description: 变量
+        in: body
+        name: values
+        schema:
+          additionalProperties: true
+          type: object
       responses:
         "200":
           description: OK

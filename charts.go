@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -120,10 +121,18 @@ func showChart(c *gin.Context) {
 	}
 	// 整理chart的readme
 	if client.OutputFormat == action.ShowReadme {
-		respOK(c, string(findReadme(chrt.Files).Data))
+		if chrt.Files == nil {
+			respOK(c, "")
+		} else {
+			respOK(c, string(findReadme(chrt.Files).Data))
+		}
 		return
 	} else if client.OutputFormat == action.ShowAll {
-		all.Readme = string(findReadme(chrt.Files).Data)
+		if chrt.Files == nil {
+			all.Readme = ""
+		} else {
+			all.Readme = string(findReadme(chrt.Files).Data)
+		}
 	}
 	// 整理chart的template
 	if client.OutputFormat == "template" || client.OutputFormat == action.ShowAll {
@@ -161,98 +170,77 @@ type ChartView struct {
 // @Description 	显示chart的k8s部署yaml，如果多个文件则合并到一个yaml一起展示出来
 // @Tags			Chart
 // @Param 			chart query string true "chart名称"
+// @Param 			values body map[string]interface{} false "变量"
 // @Success 		200 {object} respBody
 // @Router 			/charts/template [post]
 func showTemplate(c *gin.Context) {
-	// rel, err := runInstall(args, client, valueOpts, out)
-	// if err != nil && !settings.Debug {
-	// 	if rel != nil {
-	// 		respErr(c, errors.Errorf("%w\n\nUse --debug flag to render out invalid YAML", err))
-	// 		return
-	// 	}
-	// 	respErr(c, errors.Errorf(err))
-	// 	return
-	// }
+	chart := c.Query("chart")
+	// var showFiles []string
+	// var compose string
 
-	// // We ignore a potential error here because, when the --debug flag was specified,
-	// // we always want to print the YAML, even if it is not valid. The error is still returned afterwards.
-	// if rel != nil {
-	// 	var manifests bytes.Buffer
-	// 	fmt.Fprintln(&manifests, strings.TrimSpace(rel.Manifest))
-	// 	if !client.DisableHooks {
-	// 		fileWritten := make(map[string]bool)
-	// 		for _, m := range rel.Hooks {
-	// 			if client.OutputDir == "" {
-	// 				fmt.Fprintf(&manifests, "---\n# Source: %s\n%s\n", m.Path, m.Manifest)
-	// 			} else {
-	// 				newDir := client.OutputDir
-	// 				if client.UseReleaseName {
-	// 					newDir = filepath.Join(client.OutputDir, client.ReleaseName)
-	// 				}
-	// 				err = writeToFile(newDir, m.Path, m.Manifest, fileWritten[m.Path])
-	// 				if err != nil {
-	// 					return err
-	// 				}
-	// 				fileWritten[m.Path] = true
-	// 			}
+	var vals map[string]interface{}
+	err := c.ShouldBindJSON(&vals)
+	if err != nil {
+		respErr(c, err)
+		return
+	}
 
-	// 		}
-	// 	}
+	actionConfig, err := actionConfigInit(settings.Namespace())
+	client := action.NewInstall(actionConfig)
+	client.DryRun = true
+	client.ReleaseName = "RELEASE-NAME"
+	client.Replace = true // Skip the name check
+	// client.ClientOnly = !validate
+	// client.APIVersions = chartutil.VersionSet(extraAPIs)
+	// client.IncludeCRDs = includeCrds
 
-	// 	// if we have a list of files to render, then check that each of the
-	// 	// provided files exists in the chart.
-	// 	if len(showFiles) > 0 {
-	// 		// This is necessary to ensure consistent manifest ordering when using --show-only
-	// 		// with globs or directory names.
-	// 		splitManifests := releaseutil.SplitManifests(manifests.String())
-	// 		manifestsKeys := make([]string, 0, len(splitManifests))
-	// 		for k := range splitManifests {
-	// 			manifestsKeys = append(manifestsKeys, k)
-	// 		}
-	// 		sort.Sort(releaseutil.BySplitManifestsOrder(manifestsKeys))
+	rel, err := runInstall(chart, client, vals)
+	if err != nil {
+		respErr(c, err)
+	}
+	respOK(c, rel.Manifest)
+}
 
-	// 		manifestNameRegex := regexp.MustCompile("# Source: [^/]+/(.+)")
-	// 		var manifestsToRender []string
-	// 		for _, f := range showFiles {
-	// 			missing := true
-	// 			// Use linux-style filepath separators to unify user's input path
-	// 			f = filepath.ToSlash(f)
-	// 			for _, manifestKey := range manifestsKeys {
-	// 				manifest := splitManifests[manifestKey]
-	// 				submatch := manifestNameRegex.FindStringSubmatch(manifest)
-	// 				if len(submatch) == 0 {
-	// 					continue
-	// 				}
-	// 				manifestName := submatch[1]
-	// 				// manifest.Name is rendered using linux-style filepath separators on Windows as
-	// 				// well as macOS/linux.
-	// 				manifestPathSplit := strings.Split(manifestName, "/")
-	// 				// manifest.Path is connected using linux-style filepath separators on Windows as
-	// 				// well as macOS/linux
-	// 				manifestPath := strings.Join(manifestPathSplit, "/")
+func writeToFile(outputDir string, name string, data string, append bool) error {
+	outfileName := strings.Join([]string{outputDir, name}, string(filepath.Separator))
 
-	// 				// if the filepath provided matches a manifest path in the
-	// 				// chart, render that manifest
-	// 				if matched, _ := filepath.Match(f, manifestPath); !matched {
-	// 					continue
-	// 				}
-	// 				manifestsToRender = append(manifestsToRender, manifest)
-	// 				missing = false
-	// 			}
-	// 			if missing {
-	// 				return fmt.Errorf("could not find template %s in chart", f)
-	// 			}
-	// 		}
-	// 		for _, m := range manifestsToRender {
-	// 			fmt.Fprintf(out, "---\n%s\n", m)
-	// 		}
-	// 	} else {
-	// 		fmt.Fprintf(out, "%s", manifests.String())
-	// 	}
-	// }
+	err := ensureDirectoryForFile(outfileName)
+	if err != nil {
+		return err
+	}
 
-	// respErr(c, errors.Errorf(err))
-	// return
+	f, err := createOrOpenFile(outfileName, append)
+	if err != nil {
+		return err
+	}
+
+	defer f.Close()
+
+	_, err = f.WriteString(fmt.Sprintf("---\n# Source: %s\n%s\n", name, data))
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("wrote %s\n", outfileName)
+	return nil
+}
+
+func createOrOpenFile(filename string, append bool) (*os.File, error) {
+	if append {
+		return os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0600)
+	}
+	return os.Create(filename)
+}
+
+func ensureDirectoryForFile(file string) error {
+	baseDir := path.Dir(file)
+	_, err := os.Stat(baseDir)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	return os.MkdirAll(baseDir, 0755)
 }
 
 // @Summary			获取chart下载地址
@@ -307,29 +295,6 @@ func createChart(c *gin.Context) {
 		return
 	}
 
-	// 创建chart目录和文件
-	//path := helmConfig.SnapPath + "/" + chartObj.Chart.Name + "." + strconv.FormatInt(time.Now().UnixNano(), 10)
-	// os.MkdirAll(path, 0755) //创建chart目录
-	// //创建Chart.yaml
-	// if file, err := os.Create(path + "/Chart.yaml"); err == nil {
-	// 	data, _ := yaml.Marshal(chartObj.Chart)
-	// 	file.Write(data)
-	// }
-	// //创建values.yaml
-	// if file, err := os.Create(path + "/values.yaml"); err == nil {
-	// 	data, _ := yaml.Marshal(chartObj.Values)
-	// 	file.Write(data)
-	// }
-	// //创建readme.md
-	// if file, err := os.Create(path + "/README.md"); err == nil {
-	// 	file.WriteString(chartObj.Readme)
-	// }
-	// os.MkdirAll(path+"/templates", 0755) //创建chart目录
-	// //创建k8s-compose.yaml
-	// if file, err := os.Create(path + "/templates/k8s-compose.yaml"); err == nil {
-	// 	file.WriteString(chartObj.Template[0].Data)
-	// }
-
 	path, err := ioutil.TempDir(helmConfig.SnapPath, chartObj.Chart.Name+"."+strconv.FormatInt(time.Now().UnixNano(), 10))
 	if err == nil {
 		//创建Chart.yaml
@@ -353,13 +318,8 @@ func createChart(c *gin.Context) {
 			}
 		}
 	}
-	defer os.RemoveAll(path)
+	defer os.RemoveAll(path) //销毁临时模板文件夹
 
-	// b, err := ioutil.ReadFile(settings.RepositoryConfig)
-	// if err != nil && !os.IsNotExist(err) {
-	// 	return err
-	// }
-	//repo := c.Query("repoUrl")
 	// 确定repo对象
 	repo := &repo.Entry{}
 	for _, r := range helmConfig.HelmRepos {
@@ -380,6 +340,7 @@ func createChart(c *gin.Context) {
 	} else {
 		respOK(c, "ok")
 	}
+	return
 }
 
 type chartNew struct {
@@ -387,7 +348,7 @@ type chartNew struct {
 	*ChartView
 }
 
-//s
+//
 func updateChart(c *gin.Context) {
 
 }

@@ -288,7 +288,6 @@ func installRelease(c *gin.Context) {
 		respErr(c, err)
 		return
 	}
-
 	vals, err := mergeValues(options)
 	if err != nil {
 		respErr(c, err)
@@ -316,23 +315,27 @@ func installRelease(c *gin.Context) {
 	client.Timeout = options.Timeout
 	client.CreateNamespace = options.CreateNamespace
 	client.DependencyUpdate = options.DependencyUpdate
+	if rel, err := runInstall(chart, client, vals); err != nil {
+		respErr(c, err)
+	} else {
+		respOK(c, rel)
+	}
+}
 
+func runInstall(chart string, client *action.Install, vals map[string]interface{}) (*release.Release, error) {
 	cp, err := client.ChartPathOptions.LocateChart(chart, settings)
 	if err != nil {
-		respErr(c, err)
-		return
+		return nil, err
 	}
 
 	chartRequested, err := loader.Load(cp)
 	if err != nil {
-		respErr(c, err)
-		return
+		return nil, err
 	}
 
 	validInstallableChart, err := isChartInstallable(chartRequested)
 	if !validInstallableChart {
-		respErr(c, err)
-		return
+		return nil, err
 	}
 
 	if req := chartRequested.Metadata.Dependencies; req != nil {
@@ -350,23 +353,15 @@ func installRelease(c *gin.Context) {
 					RepositoryCache:  settings.RepositoryCache,
 				}
 				if err := man.Update(); err != nil {
-					respErr(c, err)
-					return
+					return nil, err
 				}
 			} else {
-				respErr(c, err)
-				return
+				return nil, err
 			}
 		}
 	}
 
-	_, err = client.Run(chartRequested, vals)
-	if err != nil {
-		respErr(c, err)
-		return
-	}
-
-	respOK(c, nil)
+	return client.Run(chartRequested, vals)
 }
 
 // @Summary			卸载release
