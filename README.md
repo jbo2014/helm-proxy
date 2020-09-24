@@ -1,9 +1,9 @@
-# 预备条件
-服务器需要已经安装helm、helm-push
-
 # helm-proxy
 Rest api for helm 3  
 参考[opskumu/helm-wrapper](https://github.com/opskumu/helm-wrapper)，并在此基础上添加其他api接口
+
+# 预备条件
+服务器需要已经安装helm、helm-push
 
 # 编译
 windows：  
