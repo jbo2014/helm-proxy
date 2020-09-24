@@ -21,6 +21,6 @@ go build -ldflags "-s -w" -o xxxx
 docker build -t helm-proxy:`git rev-parse --short HEAD` .
 
 # 运行
-./helm-proxy --config </path/to/config.yaml> --kubeconfig </path/to/kubeconfig>
-例子：后台执行，自定义ip、port
-nohup ./helm-proxy --config ./config.yaml --kubeconfig /root/.kube/config --addr 192.168.0.188 --port 18080 &
+./helm-proxy --config </path/to/config.yaml> --kubeconfig </path/to/kubeconfig>  
+例子：后台执行，自定义ip、port  
+nohup ./helm-proxy --config ./config.yaml --kubeconfig /root/.kube/config --addr 192.168.0.188 --port 18080 &  
